@@ -26,7 +26,9 @@ SECRET_KEY = 'django-insecure-)6c^7u+l&6ks1fa)6q1_-e1p@1n9ho854#khpqc=gtti1q^me8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'teachers.sifatdev.uz'
+]
 
 
 # Application definition
@@ -72,6 +74,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "https://teachers.sifatdev.uz",
+]
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
