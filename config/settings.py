@@ -27,7 +27,9 @@ SECRET_KEY = 'django-insecure-)6c^7u+l&6ks1fa)6q1_-e1p@1n9ho854#khpqc=gtti1q^me8
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    'teachers.sifatdev.uz'
+    'teachers.sifatdev.uz',
+    '127.0.0.1',
+    'localhost'
 ]
 
 
@@ -77,11 +79,17 @@ WSGI_APPLICATION = 'config.wsgi.application'
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
     "https://teachers.sifatdev.uz",
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://teachers.sifatdev.uz",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "http://localhost:8000",
 ]
 
 # Database
