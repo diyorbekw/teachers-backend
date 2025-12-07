@@ -267,6 +267,7 @@ JAZZMIN_SETTINGS = {
         "core.Grade": "fas fa-star",
         "core.Payment": "fas fa-money-bill-wave",
         "core.News": "fas fa-newspaper",
+        "core.Homework": "fas fa-book",
     },
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-circle",

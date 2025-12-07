@@ -127,3 +127,57 @@ class News(models.Model):
 
     def __str__(self):
         return self.title
+    
+class Homework(models.Model):
+    title = models.CharField(max_length=255, verbose_name="Sarlavha")
+    description = models.TextField(verbose_name="Tavsif")
+    due_date = models.DateField(verbose_name="Muddati")
+    homework_file = models.FileField(upload_to='homeworks/', null=True, blank=True, verbose_name="Fayl")
+    
+    # Yangi field'lar
+    teacher = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_homeworks',
+        verbose_name="O'qituvchi"
+    )
+    students = models.ManyToManyField(
+        'Student',
+        related_name='homeworks',
+        verbose_name="O'quvchilar",
+        blank=True
+    )
+    center = models.ForeignKey(
+        LearningCenter,
+        on_delete=models.CASCADE,
+        related_name='homeworks',
+        null=True,
+        blank=True,
+        verbose_name="O'quv markaz"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan sana")
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_homeworks',
+        verbose_name="Yaratgan admin"
+    )
+    
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    
+    class Meta:
+        verbose_name = "Uy vazifasi"
+        verbose_name_plural = "Uy vazifalari"
+        ordering = ['-due_date', '-created_at']
+        
+    def __str__(self):
+        return self.title
+    
+    def get_student_count(self):
+        return self.students.count()
+    get_student_count.short_description = "O'quvchilar soni"

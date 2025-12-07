@@ -1,4 +1,3 @@
-# core/admin.py
 from django.contrib import admin
 from django import forms
 from django.urls import path
@@ -8,7 +7,7 @@ from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 from django.utils.html import format_html
 from django.contrib import messages
-from .models import Attendance, Student, Grade, Payment, News, LearningCenter, Parent
+from .models import Attendance, Student, Grade, Payment, News, LearningCenter, Parent, Homework
 from account.models import User
 
 
@@ -769,3 +768,332 @@ class NewsAdmin(admin.ModelAdmin):
                 obj.center = request.user.center
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+
+# --- Homework Form va Admin ---
+class HomeworkAdminForm(forms.ModelForm):
+    class Meta:
+        model = Homework
+        fields = ['title', 'description', 'due_date', 'homework_file', 'teacher', 'students', 'center', 'is_active']
+        widgets = {
+            'description': forms.Textarea(attrs={'rows': 4}),
+            'due_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Foydalanuvchiga qarab queryserlarni filtratsiya qilish
+        if 'teacher' in self.fields:
+            user = getattr(self, 'current_user', None)
+            if user and hasattr(user, 'role'):
+                if user.role == "superadmin":
+                    self.fields['teacher'].queryset = User.objects.filter(role__in=["teacher", "admin", "admin_mini"])
+                elif user.role == "admin":
+                    # Admin: superadmin qo'shgan teacherlar + o'z markazidagi teacherlar
+                    self.fields['teacher'].queryset = User.objects.filter(
+                        Q(role__in=["teacher", "admin_mini"]) &
+                        (Q(created_by__role="superadmin") | Q(center=user.center))
+                    )
+                elif user.role == "teacher":
+                    self.fields['teacher'].queryset = User.objects.filter(id=user.id)
+                    self.fields['teacher'].initial = user
+                else:
+                    self.fields['teacher'].queryset = User.objects.none()
+        
+        if 'students' in self.fields:
+            user = getattr(self, 'current_user', None)
+            if user and hasattr(user, 'role'):
+                if user.role == "superadmin":
+                    self.fields['students'].queryset = Student.objects.filter(is_active=True)
+                elif user.role in ["admin", "admin_mini"]:
+                    # Admin: superadmin qo'shgan o'quvchilar + o'zi qo'shganlar + o'z markazidagilar
+                    self.fields['students'].queryset = Student.objects.filter(
+                        (Q(created_by__role="superadmin") | 
+                         Q(created_by=user) |
+                         Q(center=user.center)) &
+                        Q(is_active=True)
+                    )
+                elif user.role == "teacher":
+                    self.fields['students'].queryset = Student.objects.filter(
+                        teacher=user,
+                        is_active=True
+                    )
+                else:
+                    self.fields['students'].queryset = Student.objects.none()
+        
+        if 'center' in self.fields:
+            user = getattr(self, 'current_user', None)
+            if user and hasattr(user, 'role'):
+                if user.role == "superadmin":
+                    self.fields['center'].queryset = LearningCenter.objects.all()
+                elif user.role in ["admin", "admin_mini", "teacher"]:
+                    if user.center:
+                        self.fields['center'].queryset = LearningCenter.objects.filter(id=user.center.id)
+                        self.fields['center'].initial = user.center
+                    else:
+                        self.fields['center'].queryset = LearningCenter.objects.none()
+                else:
+                    self.fields['center'].queryset = LearningCenter.objects.none()
+
+@admin.register(Homework)
+class HomeworkAdmin(admin.ModelAdmin):
+    form = HomeworkAdminForm
+    list_display = (
+        'id',
+        'title',
+        'teacher_display',
+        'student_count',
+        'center_display',
+        'due_date',
+        'is_active_display',
+        'created_at',
+    )
+    
+    list_filter = (
+        'center',
+        'teacher',
+        'due_date',
+        'is_active',
+        'created_at',
+    )
+    
+    search_fields = (
+        'title',
+        'description',
+        'teacher__first_name',
+        'teacher__last_name',
+    )
+    
+    readonly_fields = (
+        'created_at',
+        'created_by',
+    )
+    
+    filter_horizontal = ('students',)
+    
+    fieldsets = (
+        ('Asosiy maʼlumotlar', {
+            'fields': ('title', 'description', 'due_date', 'homework_file')
+        }),
+        ('Biriktirishlar', {
+            'fields': ('teacher', 'students', 'center')
+        }),
+        ('Qoʻshimcha maʼlumotlar', {
+            'fields': ('is_active', 'created_at', 'created_by')
+        }),
+    )
+    
+    actions = ['mark_as_completed', 'mark_as_inactive', 'assign_to_all_students']
+    
+    def teacher_display(self, obj):
+        if obj.teacher:
+            return f"{obj.teacher.first_name} {obj.teacher.last_name}"
+        return "Biriktirilmagan"
+    teacher_display.short_description = "O'qituvchi"
+    
+    def center_display(self, obj):
+        if obj.center:
+            return obj.center.name
+        return "Markaz biriktirilmagan"
+    center_display.short_description = "O'quv markaz"
+    
+    def student_count(self, obj):
+        return obj.students.count()
+    student_count.short_description = "O'quvchilar soni"
+    
+    def is_active_display(self, obj):
+        if obj.is_active:
+            return format_html('<span style="color: green;">✓ Faol</span>')
+        else:
+            return format_html('<span style="color: red;">✗ Nofaol</span>')
+    is_active_display.short_description = "Holati"
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.current_user = request.user
+        return form
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if not request.user.is_authenticated:
+            return qs.none()
+        
+        user = request.user
+        if hasattr(user, 'role'):
+            if user.role == "superadmin":
+                return qs
+            elif user.role in ["admin", "admin_mini"]:
+                # Admin: superadmin qo'shganlar + o'zi qo'shganlar + o'z markazidagilar
+                return qs.filter(
+                    Q(created_by__role="superadmin") | 
+                    Q(created_by=user) |
+                    Q(center=user.center)
+                )
+            elif user.role == "teacher":
+                return qs.filter(teacher=user)
+        return qs.none()
+    
+    def has_module_permission(self, request):
+        if not request.user.is_authenticated:
+            return False
+        
+        if not hasattr(request.user, 'role'):
+            return request.user.is_superuser
+        
+        return request.user.role in ["superadmin", "admin", "admin_mini", "teacher"]
+    
+    def has_view_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        
+        if not hasattr(request.user, 'role'):
+            return request.user.is_superuser
+        
+        user = request.user
+        if user.role == "superadmin":
+            return True
+        elif user.role in ["admin", "admin_mini"]:
+            if obj:
+                return (obj.created_by.role == "superadmin" or 
+                       obj.created_by == user or 
+                       obj.center == user.center)
+            return True
+        elif user.role == "teacher":
+            if obj:
+                return obj.teacher == user
+            return True
+        return False
+    
+    def has_add_permission(self, request):
+        return request.user.is_authenticated and request.user.role in ["superadmin", "admin", "admin_mini", "teacher"]
+    
+    def has_change_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        
+        if not hasattr(request.user, 'role'):
+            return request.user.is_superuser
+        
+        user = request.user
+        if user.role == "superadmin":
+            return True
+        elif user.role in ["admin", "admin_mini"]:
+            if obj and obj.created_by == user:
+                return True
+        elif user.role == "teacher":
+            if obj and obj.teacher == user:
+                return True
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        if not request.user.is_authenticated:
+            return False
+        
+        if not hasattr(request.user, 'role'):
+            return request.user.is_superuser
+        
+        user = request.user
+        if user.role == "superadmin":
+            return True
+        elif user.role in ["admin", "admin_mini"]:
+            if obj and obj.created_by == user:
+                return True
+        elif user.role == "teacher":
+            if obj and obj.teacher == user:
+                return True
+        return False
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+            
+            # Agar teacher o'rnatilmagan bo'lsa, request.user ni teacher sifatida o'rnatish
+            if not obj.teacher and request.user.role in ["teacher", "admin", "admin_mini"]:
+                obj.teacher = request.user
+            
+            # Agar center o'rnatilmagan bo'lsa, teacher'ning center'ini olish
+            if not obj.center and obj.teacher and obj.teacher.center:
+                obj.center = obj.teacher.center
+            elif not obj.center and request.user.center:
+                obj.center = request.user.center
+        
+        super().save_model(request, obj, form, change)
+    
+    # Custom actions
+    def mark_as_completed(self, request, queryset):
+        """Tanlangan uy vazifalarini bajarilgan deb belgilash"""
+        updated = queryset.update(is_active=False)
+        self.message_user(
+            request,
+            f"{updated} ta uy vazifasi bajarilgan deb belgilandi",
+            messages.SUCCESS
+        )
+    mark_as_completed.short_description = "Bajarilgan deb belgilash"
+    
+    def mark_as_inactive(self, request, queryset):
+        """Tanlangan uy vazifalarini nofaol qilish"""
+        updated = queryset.update(is_active=False)
+        self.message_user(
+            request,
+            f"{updated} ta uy vazifasi nofaol qilindi",
+            messages.SUCCESS
+        )
+    mark_as_inactive.short_description = "Nofaol qilish"
+    
+    def assign_to_all_students(self, request, queryset):
+        """Tanlangan uy vazifalarini barcha o'quvchilarga biriktirish"""
+        user = request.user
+        
+        for homework in queryset:
+            if user.role == "superadmin":
+                students = Student.objects.filter(is_active=True)
+            elif user.role in ["admin", "admin_mini"]:
+                students = Student.objects.filter(
+                    center=user.center,
+                    is_active=True
+                )
+            elif user.role == "teacher":
+                students = Student.objects.filter(
+                    teacher=user,
+                    is_active=True
+                )
+            else:
+                continue
+            
+            homework.students.add(*students)
+        
+        self.message_user(
+            request,
+            f"{queryset.count()} ta uy vazifasi barcha o'quvchilarga biriktirildi",
+            messages.SUCCESS
+        )
+    assign_to_all_students.short_description = "Barcha o'quvchilarga biriktirish"
+    
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        
+        # Agar o'chirish ruxsati bo'lmasa, delete action'ni olib tashlash
+        if not self.has_delete_permission(request):
+            if 'delete_selected' in actions:
+                del actions['delete_selected']
+        
+        return actions
+    
+    # Change list uchun qo'shimcha funksiyalar
+    def changelist_view(self, request, extra_context=None):
+        # Qo'shimcha kontekst ma'lumotlari
+        extra_context = extra_context or {}
+        
+        user = request.user
+        if hasattr(user, 'role'):
+            if user.role == "teacher":
+                # Teacher uchun statistikalar
+                active_homeworks = self.get_queryset(request).filter(is_active=True).count()
+                total_students = Student.objects.filter(teacher=user, is_active=True).count()
+                
+                extra_context.update({
+                    'active_homeworks': active_homeworks,
+                    'total_students': total_students,
+                })
+        
+        return super().changelist_view(request, extra_context=extra_context)
