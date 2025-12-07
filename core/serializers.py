@@ -967,5 +967,5 @@ class StudentDetailSerializer(serializers.ModelSerializer):
             'completed_homeworks': completed_homeworks,
             'total_payments': total_payments,
             'paid_payments': paid_payments,
-            'overdue_payments': overdue_payments
+            'overdue_payments': overdue_payments 
         } 
