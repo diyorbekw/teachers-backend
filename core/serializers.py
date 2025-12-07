@@ -968,4 +968,4 @@ class StudentDetailSerializer(serializers.ModelSerializer):
             'total_payments': total_payments,
             'paid_payments': paid_payments,
             'overdue_payments': overdue_payments
-        }
+        } 
