@@ -438,7 +438,7 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 # CSRF settings
 CSRF_COOKIE_SECURE = False
 CSRF_COOKIE_HTTPONLY = True
-CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax' 
 
 # Development uchun security'ni o'chirish
 if DEBUG: 
