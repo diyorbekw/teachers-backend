@@ -940,7 +940,7 @@ class StudentDetailSerializer(serializers.ModelSerializer):
         attendances = Attendance.objects.filter(
             student=obj, 
             created_at__gte=thirty_days_ago
-        )
+        ) 
         attendance_rate = 0
         if attendances.exists():
             total_lessons = attendances.count() * 3
