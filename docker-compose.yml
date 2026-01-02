@@ -1,0 +1,14 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  django:
+    build: .
+    container_name: education_platform_django
+    ports:
+      - "7100:7100"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings  # Change to your settings module
+    volumes:
+      - .:/app
+    restart: unless-stopped
