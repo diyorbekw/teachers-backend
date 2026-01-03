@@ -410,6 +410,7 @@ SWAGGER_SETTINGS = {
     'PERSIST_AUTH': True,
     'REFETCH_SCHEMA_WITH_AUTH': True,
     'REFETCH_SCHEMA_ON_LOGOUT': True,
+    'DEFAULT_API_URL': "https://teachers-backend.sifatdev.uz",
 }
 
 # Redoc settings
