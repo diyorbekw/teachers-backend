@@ -30,7 +30,8 @@ DEBUG = True
 ALLOWED_HOSTS = [
     'teachers.sifatdev.uz',
     '127.0.0.1',
-    'localhost'
+    'localhost',
+    'teachers-backend.sifatdev.uz',
 ]
 
 
@@ -97,6 +98,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:8000",
     "https://teachers.sifatdev.uz",
+    "https://teachers-backend.sifatdev.uz",
 ]
 
 CORS_ALLOW_METHODS = [
@@ -122,6 +124,7 @@ CORS_ALLOW_HEADERS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://teachers.sifatdev.uz",
+    "https://teachers-backend.sifatdev.uz",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8000",
